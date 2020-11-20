@@ -4,6 +4,7 @@ import pickle
 from datetime import datetime, time 
 import re
 import getmac
+from collections import Counter
 
 PORT = 5545
 SERVER = socket.gethostbyname(socket.gethostname())
@@ -28,6 +29,20 @@ server.bind(ADDR)
 global_sessions_dict = dict()
 sessions = list()
 
+# Method to process the input string 
+def process_string(mcq_message):
+    print('acha', mcq_message)
+    value = "Invalid"
+    if mcq_message == 'a' or mcq_message == 'A' or re.search('one', mcq_message)or re.search('first', mcq_message):
+        value = "1"
+    if mcq_message == 'b' or mcq_message == 'B' or re.search('2', mcq_message) or re.search('two', mcq_message) or re.search('second', mcq_message):
+        value = "2"
+    if mcq_message == 'c' or mcq_message == 'C' or re.search('3', mcq_message) or re.search('three', mcq_message) or re.search('third', mcq_message):
+        value = "3"
+    if mcq_message == 'd' or mcq_message == 'D' or re.search('4', mcq_message) or re.search('fourt?h?', mcq_message):
+        value = "4"
+    return value
+
 # Method to process the client's response 
 def process_request(value, mac_address, ip, connection):
     # For case 1
@@ -39,7 +54,7 @@ def process_request(value, mac_address, ip, connection):
     if (value == "1"):
         # Check if the user has already taken the MCQ Test 
         if mac_address in sessions:
-            connection.send("!DISCONNECT".encode(FORMAT))
+            connection.send("!DISCONNECT-one".encode(FORMAT))
             return False 
 
         # Get the time verification
@@ -56,11 +71,26 @@ def process_request(value, mac_address, ip, connection):
             mcq_message = connection.recv(mcq_message_length).decode(FORMAT)
             print(f"MCQ response received: {mcq_message}")
 
-            # Add results to the global sessions lost and object 
-            sessions.append(mac_address)
-            global_sessions_dict[mac_address] = mcq_message 
-            # Return a standard response 
-            connection.send(f"Thank you for participating. Your response is registered against your MAC address: {mac_address}".encode(FORMAT))
+            # Process the input received 
+            updated = process_string(mcq_message)
+            print('VALUE', updated)
+    
+            if updated != "Invalid":
+                # Add results to the global sessions lost and object 
+                sessions.append(mac_address)
+                global_sessions_dict[mac_address] = mcq_message 
+
+                # Return a standard response 
+                connection.send(f"Thank you for participating. Your response is registered against your MAC address: {mac_address}".encode(FORMAT))
+            else:
+                # Return a standard response 
+                connection.send(f"Incorrect response for MAC address: {mac_address}. Kindly try again".encode(FORMAT))
+
+        else:
+            if check_range == "less":
+                connection.send("!DISCONNECT-two".encode(FORMAT))
+            else:
+                connection.send("!DISCONNECT-three".encode(FORMAT))
         
         return False
 
@@ -71,7 +101,9 @@ def process_request(value, mac_address, ip, connection):
 
         if current:
             mcq_responses = "CHECK RESPONSE"
-            connection.send(mcq_responses.encode(FORMAT))
+            frequency = Counter(global_sessions_dict.values())
+            output_string = f"So, below is the number of options chosen by different people: \n Option 1: {frequency['1']} people \n Option 2: {frequency['2']} people \n Option 3: {frequency['3']} people \n Option 4: {frequency['4']} people"
+            connection.send(output_string.encode(FORMAT))
         else:
             connection.send("Kindly wait until 04:20 for the report!".encode(FORMAT))
 
@@ -83,7 +115,7 @@ def process_request(value, mac_address, ip, connection):
 
 
 # Method to check if time exists between two timings
-def check_time(start = time(11, 50), end = time(22, 20), current = None):
+def check_time(start = time(14, 50), end = time(16, 20), current = None):
     # Get current timestamp 
     current = datetime.now().time() or current 
 
@@ -91,13 +123,20 @@ def check_time(start = time(11, 50), end = time(22, 20), current = None):
     return current >= start and current <= end 
 
 # Method to check if the time is greater than the end time 
-def check_is_end_time(end = time(22, 20), current = None):
+def check_is_end_time(end = time(16, 20), current = None):
     # Get current timestamp
     current = datetime.now().time() or current 
-
     # Return true or false 
     return current > end
 
+# Check if time is less or more than the range 
+def check_range(start = time(14, 50), end = time(16, 20), current = None):
+    # Get the current time 
+    current = datetime.now().time() or current 
+    if current < start:
+        return "less"
+    else:
+        return "more"
 # Method to handle requests 
 def handleClient(connection, address, mac_address):
     print(f"[New Connection:] {address} connected!!")
@@ -113,6 +152,7 @@ def handleClient(connection, address, mac_address):
 
             message = connection.recv(message_length).decode(FORMAT)
 
+            # Show the message received 
             print(f'Message: {message}')
 
             # Disconnect if we get the !disconnect message 
@@ -122,7 +162,8 @@ def handleClient(connection, address, mac_address):
             else:
                 # Print the client credentials
                 print(f"[{address}] {message}")
-
+                
+                # Call the helper method to process the request
                 process_request(message, mac_address, address, connection)
     connection.close()
 

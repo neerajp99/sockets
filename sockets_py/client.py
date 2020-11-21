@@ -2,6 +2,7 @@ import socket
 
 PORT = 5545
 SERVER = socket.gethostbyname(socket.gethostname())
+# SERVER = '192.168.0.100'
 
 # Tuple with port and server 
 ADDR = (SERVER, PORT)

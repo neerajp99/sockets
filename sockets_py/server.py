@@ -1,6 +1,5 @@
 import socket 
 import threading 
-import pickle
 from datetime import datetime, time 
 import re
 import getmac
@@ -8,6 +7,7 @@ from collections import Counter
 
 PORT = 5545
 SERVER = socket.gethostbyname(socket.gethostname())
+# SERVER = '192.168.0.100'
 
 # Tuple with port and server 
 ADDR = (SERVER, PORT)
@@ -26,6 +26,12 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 
 # Global dictionary to store sessions 
+# global_sessions_dict = {
+#     'a': '1',
+#     'b': '2',
+#     'c': '1',
+#     'd': '3'
+# }
 global_sessions_dict = dict()
 sessions = list()
 
@@ -102,7 +108,7 @@ def process_request(value, mac_address, ip, connection):
         if current:
             mcq_responses = "CHECK RESPONSE"
             frequency = Counter(global_sessions_dict.values())
-            output_string = f"So, below is the number of options chosen by different people: \n Option 1: {frequency['1']} people \n Option 2: {frequency['2']} people \n Option 3: {frequency['3']} people \n Option 4: {frequency['4']} people"
+            output_string = f"The number of responses each option for the MCQ has received: \n Option 1: {frequency['1']} people \n Option 2: {frequency['2']} people \n Option 3: {frequency['3']} people \n Option 4: {frequency['4']} people"
             connection.send(output_string.encode(FORMAT))
         else:
             connection.send("Kindly wait until 04:20 for the report!".encode(FORMAT))
